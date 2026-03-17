@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Digital Audio Notary</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem auto; max-width: 960px; line-height: 1.4; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+      .badge { display:inline-block; padding:0.2rem 0.5rem; border-radius: 999px; font-size: 0.8rem; background: #eef; }
+      .warn { background: #fff9e6; border-color: #f0d98a; }
+      .error { color: #b00020; font-weight: 700; }
+      img { max-width: 100%; border: 1px solid #ccc; border-radius: 6px; }
+      .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>🔎 Digital Audio Notary</h1>
+    <p>Upload an audio clip to run a 3-layer trust audit and get a final verdict: <strong>Human or Not Human</strong>.</p>
+
+    <div class="card warn">
+      <strong>Important:</strong> {{ limitations }}
+    </div>
+
+    <div class="card">
+      <form method="post" enctype="multipart/form-data">
+        <label>Audio file (wav/mp3/flac/m4a):</label><br />
+        <input type="file" name="audio" accept="audio/*" required />
+        <button type="submit">Analyze</button>
+      </form>
+      <p><span class="badge">HF model</span> {{ hf_model_id or "DunnBC22/wav2vec2-base-finetuned-gtzan-music-speech" }}</p>
+    </div>
+
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if analyzed %}
+      <div class="card">
+        <h2>Layer 3: Authenticity Score</h2>
+        <p><strong>Trust Score:</strong> {{ "%.1f"|format(trust_score) }}%</p>
+        <p><strong>Final Binary Verdict:</strong> {{ binary_verdict }}</p>
+        <p><strong>Forensic Note:</strong> {{ detail_verdict }}</p>
+        <p><strong>HF Signal:</strong> Human probability {{ "%.3f"|format(model.human_probability) }} (top label: {{ model.top_label }})</p>
+      </div>
+
+      <div class="card">
+        <h2>Layer 1: Metadata & Structural Integrity</h2>
+        <ul>
+          <li>Bitrate inconsistency: <strong>{{ layer1.bitrate_inconsistent }}</strong></li>
+          <li>Duration-size mismatch: <strong>{{ layer1.duration_size_mismatch }}</strong></li>
+          <li>Editing markers: <strong>{{ layer1.editing_software_detected or "none" }}</strong></li>
+          <li>Digital silence events: <strong>{{ layer1.digital_silence_events }}</strong></li>
+        </ul>
+        {% if layer1.notes %}
+          <h4>Findings</h4>
+          <ul>{% for n in layer1.notes %}<li>{{n}}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2>Layer 2: Biological Features</h2>
+        <ul>
+          <li>Pitch jitter: <strong>{{ "%.6f"|format(layer2.jitter) }}</strong> (flag={{layer2.jitter_flag}})</li>
+          <li>Shimmer: <strong>{{ "%.6f"|format(layer2.shimmer) }}</strong> (flag={{layer2.shimmer_flag}})</li>
+        </ul>
+        <div class="grid">
+          <div>
+            <h4>MFCC</h4>
+            <img alt="MFCC" src="data:image/png;base64,{{ layer2.mfcc_image_b64 }}" />
+          </div>
+          <div>
+            <h4>Spectrogram</h4>
+            <img alt="Spectrogram" src="data:image/png;base64,{{ layer2.spectrogram_image_b64 }}" />
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </body>
+</html>
